@@ -1,251 +1,134 @@
 FIFE NGL FEEDSTOCK MODEL - ASSUMPTION REGISTER
-UPDATED PRODUCT-SPLIT VERSION
+===============================================
 
-=======
 PURPOSE
-=======
-Estimate potential ethane, propane, butane and natural-gasoline output
-from the Fife NGL plant over the project period.
+-------
+Estimate potential long-term Fife NGL product/feedstock availability.
+Baseline model products are ethane, propane, butane and natural gasoline.
+Scenario outputs use ethane, propane and butane.
 
-=====
-FILES
-=====
-assumptions.py
-    All source-derived inputs and user-editable modelling assumptions.
-
-model.py
-    Calculation logic only.
-
-run_model.py
-    Runs the model, prints yearly results, exports the project-period CSV,
-    and plots product availability.
-
-=====================
 SOURCE-DERIVED INPUTS
-=====================
+---------------------
 
-1. FIFE NGL THROUGHPUT
-2024 anchor = 2,237 kt/y.
-Basis: reported Fife Council Shell FNGL processing data.
+FIFE NGL THROUGHPUT [1]
+2024 processed NGL = approximately 2,237 kt/y, based on reported monthly
+Fife NGL processing data.
 
-2. 2025 ST FERGUS THROUGHPUT
+2025 ST FERGUS GAS [2]
 SEGAL = 7.5 bcm/y
 FUKA  = 4.7 bcm/y
 SAGE  = 3.7 bcm/y
-Basis: OEUK / Westwood, February 2026.
+Total = 15.9 bcm/y
 
-3. NORWEGIAN CONTRIBUTION (https://www.sodir.no/en/whats-new/publications/reports/the-shelf/the-shelf-in-2025/summary/)
-Reconstructed from OEUK / Westwood 2025 field shares:
-SEGAL = 54% Norway (Gjoa 45% + Statfjord 9%)
-FUKA  = 31% Norway (Martin Linge 31%)
-SAGE  = 38% Norway (Alvheim 21% + Eiga 17%)
+Norwegian shares reconstructed from source field contributions:
+SEGAL = 54%, FUKA = 31%, SAGE = 38%.
+Derived 2025 split: Norway = 6.913 bcm/y; UK = 8.987 bcm/y.
 
-4. UK GAS PRODUCTION, 2026-2050 
-Read directly from the supplied NSTA February 2026 production-projection
-workbook.
+UK GAS PRODUCTION, 2026-2050 [3,4]
+Annual UK gross-gas production is read from the NSTA February 2026
+production-projection workbook.
 
-================================
-FIFE NGL PRODUCT COMPOSITION
-================================
+NORWEGIAN GAS PRODUCTION, 2025-2035 [5,6]
+The 2025 Norwegian sales-gas value is 120.5 bcm on a 40 MJ-normalised basis.
+The 2026-2035 values below are rounded readings from the Norwegian Offshore
+Directorate chart "Expected volumes of sales gas from Norwegian fields,
+1995-2035", updated April 2026:
 
-Representative Fife NGL product mass fractions are derived from historical
-Shell Fife NGL operating data reported to SEPA.
+2025  120.5 bcm/y
+2026  122
+2027  122
+2028  119
+2029  114
+2030  108
+2031  102
+2032   97
+2033   93
+2034   89
+2035   85
 
-The 2018 and 2020 operating years are used as the representative basis.
+These national values are used only as an index to scale the 2025 Norwegian
+gas contribution relevant to St Fergus.
 
-2019 is excluded because SEPA reports prolonged ethane flaring during that
-year due to an FEP shutdown.
-
-2021 is excluded because SEPA reports an FEP shutdown which resulted in part
-of the ethane production being exported to Grangemouth rather than following
-the usual FEP route.
-
-SOURCE DATA
------------
-
-SEPA reports the following product exports from Fife NGL.
-
-2018:
-
-Ethane:
-    932,980.53 t/y
-
-Propane:
-    Ships         = 917,382.20 t/y
-    Road tankers  =  96,953.40 t/y
-    FEP           =  12,478.20 t/y
-
-    Total propane = 1,026,813.80 t/y
-
-Butane:
-    Ships         = 639,464.20 t/y
-    Road tankers  =  84,127.20 t/y
-
-    Total butane  = 723,591.40 t/y
-
-Natural gasoline:
-    526,721.90 t/y
-
-
-2020:
-
-Ethane:
-    695,319.23 t/y
-
-Propane:
-    Ships         = 720,700.60 t/y
-    Road tankers  = 103,286.20 t/y
-    FEP           =   5,342.83 t/y
-
-    Total propane = 829,329.63 t/y
-
-Butane:
-    Ships         = 517,693.70 t/y
-    Road tankers  =  82,695.80 t/y
-
-    Total butane  = 600,389.50 t/y
-
-Natural gasoline:
-    430,810.80 t/y
-
-
-REPRESENTATIVE PRODUCT SPLIT
-----------------------------
-
-The 2018 and 2020 product quantities are combined to provide a representative
-two-year product distribution.
-
-Ethane:
-    932,980.53 + 695,319.23
-    = 1,628,299.76 t
-
-Propane:
-    1,026,813.80 + 829,329.63
-    = 1,856,143.43 t
-
-Butane:
-    723,591.40 + 600,389.50
-    = 1,323,980.90 t
-
-Natural gasoline:
-    526,721.90 + 430,810.80
-    = 957,532.70 t
-
-
-Total represented product:
-
-    1,628,299.76
-  + 1,856,143.43
-  + 1,323,980.90
-  +   957,532.70
-  = 5,765,956.79 t
-
-
-The representative mass fraction of each product is therefore calculated as:
-
-    Product mass fraction
-        = Combined product quantity / Combined total product quantity
-
-
-Ethane:
-
-    1,628,299.76 / 5,765,956.79
-    = 0.28240
-    = 28.24 wt%
-
-
-Propane:
-
-    1,856,143.43 / 5,765,956.79
-    = 0.32191
-    = 32.19 wt%
-
-
-Butane:
-
-    1,323,980.90 / 5,765,956.79
-    = 0.22962
-    = 22.96 wt%
-
-
-Natural gasoline:
-
-    957,532.70 / 5,765,956.79
-    = 0.16607
-    = 16.61 wt%
-
-
-MODEL PRODUCT FRACTIONS
------------------------
+FIFE NGL PRODUCT SPLIT [7,8]
+Representative mass fractions use Shell Fife NGL export data reported to SEPA
+for 2018 and 2020:
 
 ETHANE_MASS_SHARE   = 0.2824
 PROPANE_MASS_SHARE  = 0.3219
 BUTANE_MASS_SHARE   = 0.2296
 GASOLINE_MASS_SHARE = 0.1661
 
-Total = 1.0000 (100.00 wt%)
+2019 and 2021 are excluded because FEP shutdowns made the normal ethane route
+unrepresentative.
 
-These fractions represent the historical distribution of the four principal
-saleable Fife NGL products during the selected 2018 and 2020 operating years.
-
-The model assumes that this representative product distribution remains
-constant throughout the forecast period. This is a screening assumption:
-future NGL composition may change as the mix of UK and Norwegian producing
-fields changes.
-
-=================
 MODEL ASSUMPTIONS
-=================
+-----------------
 
-UK ST FERGUS SHARE
-32% of NSTA UK gross gas is assigned to the northern / St Fergus systems.
-This is a screening approximation and future routing may differ.
+UK TO ST FERGUS
+32% of NSTA total UK gross gas is allocated to the St Fergus/northern system.
+This is a central screening assumption, not a fixed routing share.
 
-NORWAY
-Relevant Norwegian St Fergus supply is held constant through 2029 and then
-declined by 4.5% per year. This remains a screening approximation rather than
-a field-by-field Norwegian forecast.
+NORWAY AFTER 2035
+The gas-specific NOD outlook ends in 2035. From 2036-2063 the model continues
+the compound annual decline implied by the 2030-2035 gas profile:
+
+decline = 1 - (85 / 108)^(1/5) = approximately 4.7%/y
+
+This is a model extrapolation, not an NOD forecast.
 
 UK AFTER 2050
-NSTA ends in 2050. From 2051 to 2063 the annual UK decline is sampled between
-9% and 13%. Random seed 45 makes the result reproducible.
+NSTA ends in 2050. From 2051-2063, annual UK decline is sampled between
+9% and 13%. RANDOM_SEED = 45 makes the result reproducible.
+The 9-13% range is a model assumption.
 
 FIFE NGL SCALING
-Future total Fife NGL throughput is calculated as:
+Fife NGL(t) = 2237 x [Relevant gas(t) / Relevant gas(2025)]  kt/y
 
-    Fife NGL = 2,237 kt/y
-               x future relevant St Fergus gas
-               / 2025 relevant St Fergus gas
+This assumes average NGL richness, recovery and routing remain sufficiently
+similar for proportional scaling to be useful.
 
-This assumes average NGL yield/richness and routing remain sufficiently similar
-for throughput scaling to be useful as a screening model.
+PRODUCT SPLIT
+The representative 2018/2020 product fractions are held constant through the
+forecast. Future changes in gas composition/NGL richness are not modelled.
 
-=====================
-IMPORTANT LIMITATIONS
-=====================
-
-The outputs are potential product/feedstock availability, not guaranteed
-commercial availability for a new Mossmorran project.
-
-Actual quantities may differ because of:
-- changing field composition and NGL richness
-- routing between Fife and other facilities
-- commercial contracts
-- alternative Norwegian export routes
-- plant availability and shutdowns
-- changes in NGL recovery/fractionation
-- new UK or Norwegian developments
-- imports or other future infrastructure changes
-
-The historical FNGL product split is held constant through the forecast.
-This is an explicit modelling assumption and should be sensitivity-tested
-if product composition becomes important to plant sizing.
-
-==============
 PROJECT PERIOD
-==============
-Project start = 2028
-Model end     = 2063
+--------------
+2028-2063 inclusive.
 
-2028 to 2063 is a 35-year difference. Including both endpoints produces
-36 annual table entries.
+KEY LIMITATIONS
+---------------
+- Results represent potential technical availability, not guaranteed supply.
+- Norwegian national production is used as a proxy for decline in the specific
+  Norwegian fields feeding the relevant St Fergus systems.
+- The 2026-2035 Norwegian annual values are rounded readings from an official
+  published chart rather than a machine-readable annual table.
+- Gas composition, routing, contracts and plant availability may change output.
+- Constant NGL yield and product split are screening assumptions.
+
+SOURCES
+-------
+[1] Fife Council, Shell Fife NGL Annual Operations Report 2024, Appendix C:
+https://www.fife.gov.uk/__data/assets/pdf_file/0029/675452/Agenda-and-Papers-Environment,-Transportation-and-Climate-Change-Scrutiny-Committee-of-27-May-2025.pdf
+
+[2] OEUK / Westwood, UK Produced Gas and its Role in Future Security of Supply,
+February 2026:
+https://oeuk.org.uk/product/uk-produced-gas-and-its-role-in-future-security-of-supply/
+
+[3] NSTA, February 2026 Production and Expenditure Projections:
+https://www.nstauthority.co.uk/data-and-insights/insights-and-analysis/production-and-expenditure-projections/
+
+[4] NSTA, Process for Producing NSTA Production Projections, February 2026:
+https://www.nstauthority.co.uk/media/vr0ij4ki/process-for-producing-nsta-production-projections-february-2026.pdf
+
+[5] Norwegian Petroleum / Norwegian Offshore Directorate, Production Forecasts:
+https://www.norskpetroleum.no/en/production-and-exports/production-forecasts/
+
+[6] Norwegian Petroleum / Norwegian Offshore Directorate, Exports of Oil and Gas,
+including "Expected volumes of sales gas from Norwegian fields, 1995-2035":
+https://www.norskpetroleum.no/en/production-and-exports/exports-of-oil-and-gas/
+
+[7] SEPA, Shell Fife NGL Plant - Resource Utilisation Systematic Assessment:
+https://www.sepa.org.uk/media/594397/fngl-2_5_2-resource_utilisation_redacted.pdf
+
+[8] SEPA, Shell Fife NGL Plant - Plans 2021:
+https://www.sepa.org.uk/media/594396/fngl-2_4_7-plans_2021_redacted.pdf

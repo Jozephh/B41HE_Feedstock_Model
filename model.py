@@ -1,14 +1,11 @@
 import pandas as pd
 import numpy as np
+
 import assumptions as A
 
 
 def run_model(workbook):
-
-    # ========================================================
-    # 2025 GAS BASELINE
-    # ========================================================
-
+    # 2025 St Fergus baseline
     total_2025 = A.SEGAL_BCM + A.FUKA_BCM + A.SAGE_BCM
 
     norway_2025 = (
@@ -19,95 +16,72 @@ def run_model(workbook):
 
     uk_2025 = total_2025 - norway_2025
 
-
-    # ========================================================
-    # READ NSTA UK GAS FORECAST
-    # ========================================================
-
+    # NSTA UK gas projection, 2026-2050
     gas = pd.read_excel(
         workbook,
         sheet_name="Projections",
         usecols="H,J",
         header=None,
-        names=["year", "uk_gas"]
+        names=["year", "uk_gas"],
     )
 
     gas["year"] = pd.to_numeric(gas["year"], errors="coerce")
     gas["uk_gas"] = pd.to_numeric(gas["uk_gas"], errors="coerce")
-
     gas = gas.dropna()
     gas = gas[gas["year"].between(2026, 2050)]
     gas["year"] = gas["year"].astype(int)
 
     nsta = dict(zip(gas["year"], gas["uk_gas"]))
 
-
-    # ========================================================
-    # UK GAS PROJECTION
-    # ========================================================
-
+    # UK gas relevant to St Fergus
     uk = {2025: uk_2025}
 
     for year in range(2026, 2051):
         uk[year] = A.UK_ST_FERGUS_SHARE * nsta[year]
-
-
-    # ========================================================
-    # UK AFTER 2050
-    # ========================================================
 
     rng = np.random.default_rng(A.RANDOM_SEED)
 
     for year in range(2051, A.END_YEAR + 1):
         decline = rng.uniform(
             A.UK_RANDOM_DECLINE_MIN,
-            A.UK_RANDOM_DECLINE_MAX
+            A.UK_RANDOM_DECLINE_MAX,
         )
         uk[year] = uk[year - 1] * (1 - decline)
 
+    # Norwegian gas relevant to St Fergus
+    norway = {2025: norway_2025}
+    norway_reference = A.NORWAY_SALES_GAS_BCM[2025]
 
-    # ========================================================
-    # NORWEGIAN GAS PROJECTION
-    # ========================================================
+    for year in range(2026, A.NORWAY_FORECAST_END_YEAR + 1):
+        norway[year] = (
+            norway_2025
+            * A.NORWAY_SALES_GAS_BCM[year]
+            / norway_reference
+        )
 
-    norway = {}
+    # Derive the post-2035 decline from the 2030-2035 NOD trend
+    start_year = A.NORWAY_DECLINE_START_YEAR
+    end_year = A.NORWAY_FORECAST_END_YEAR
 
-    for year in range(A.START_YEAR, A.END_YEAR + 1):
+    norway_decline = 1 - (
+        A.NORWAY_SALES_GAS_BCM[end_year]
+        / A.NORWAY_SALES_GAS_BCM[start_year]
+    ) ** (1 / (end_year - start_year))
 
-        if year <= A.NORWAY_FLAT_TO_YEAR:
-            norway[year] = norway_2025
+    for year in range(end_year + 1, A.END_YEAR + 1):
+        norway[year] = norway[year - 1] * (1 - norway_decline)
 
-        else:
-            norway[year] = (
-                norway_2025
-                * (1 - A.NORWAY_DECLINE)
-                ** (year - A.NORWAY_FLAT_TO_YEAR)
-            )
-
-
-    # ========================================================
-    # FIFE NGL AND PRODUCT OUTPUT
-    # ========================================================
-
+    # Fife NGL throughput and product availability
     rows = []
 
     for year in range(A.START_YEAR, A.END_YEAR + 1):
-
         total_gas = uk[year] + norway[year]
+        total_ngl = A.FIFE_NGL_KTPA * total_gas / total_2025
 
-        # Scale the actual Fife NGL throughput anchor in direct
-        # proportion to relevant St Fergus gas throughput.
-        total_ngl = (
-            A.FIFE_NGL_KTPA
-            * total_gas
-            / total_2025
-        )
-
-        # Product quantities use representative FNGL mass shares
-        # derived from Shell/SEPA operating material balances.
         ethane = total_ngl * A.ETHANE_MASS_SHARE
         propane = total_ngl * A.PROPANE_MASS_SHARE
         butane = total_ngl * A.BUTANE_MASS_SHARE
+        gasoline = total_ngl * A.GASOLINE_MASS_SHARE
 
         rows.append([
             year,
@@ -117,13 +91,9 @@ def run_model(workbook):
             total_ngl,
             ethane,
             propane,
-            butane
+            butane,
+            gasoline,
         ])
-
-
-    # ========================================================
-    # DATAFRAME
-    # ========================================================
 
     df = pd.DataFrame(
         rows,
@@ -135,14 +105,10 @@ def run_model(workbook):
             "total_ngl_ktpa",
             "ethane_ktpa",
             "propane_ktpa",
-            "butane_ktpa"
-        ]
+            "butane_ktpa",
+            "gasoline_ktpa",
+        ],
     )
-
-
-    # ========================================================
-    # YEARLY DECLINE
-    # ========================================================
 
     df["uk_decline_percent"] = -df["uk_bcm"].pct_change() * 100
     df["norway_decline_percent"] = -df["norway_bcm"].pct_change() * 100
