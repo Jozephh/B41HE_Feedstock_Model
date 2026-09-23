@@ -1,98 +1,107 @@
-import pandas as pd
+import os
+
 import matplotlib.pyplot as plt
+import pandas as pd
 
 import assumptions as A
 from model import run_model
-from scenarios import SCENARIOS, scenario_uplift
-
-
-WORKBOOK = (
-    "nsta-february-2026-production-projections-plus-ccc-and-desnz-demand-projections.xlsx"
+from scenarios import (
+    SCENARIOS,
+    build_oeuk_production,
+    scenario_gas,
 )
 
 
-# ============================================================
-# RUN BASELINE MODEL
-# ============================================================
+WORKBOOK = (
+    "nsta-february-2026-production-projections-plus-"
+    "ccc-and-desnz-demand-projections.xlsx"
+)
+
+OUTPUT_FOLDER = "scenario_outputs"
+GRAPH_START_YEAR = 2026
+
+FEEDSTOCKS = {
+    "ethane": A.ETHANE_MASS_SHARE,
+    "propane": A.PROPANE_MASS_SHARE,
+    "butane": A.BUTANE_MASS_SHARE,
+}
+
+SCENARIO_SHEETS = {
+    "NSTA Reference": "NSTA Reference",
+    "Rosebank + Jackdaw": "Rosebank + Jackdaw",
+    "Max Drilling (OEUK Upside)": "Max Drilling",
+}
+
+os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+
+
+# ------------------------------------------------------------
+# Baseline
+# ------------------------------------------------------------
 
 baseline = run_model(WORKBOOK)
 
+baseline_2025_gas = (
+    A.SEGAL_BCM
+    + A.FUKA_BCM
+    + A.SAGE_BCM
+)
 
-# ============================================================
-# RUN SCENARIOS
-# ============================================================
+# Convert St Fergus allocated UK gas back to total UK production
+nsta_uk = {
+    int(row.year):
+    row.uk_bcm / A.UK_ST_FERGUS_SHARE
+    for row in baseline.itertuples()
+}
 
-scenario_results = []
+oeuk = build_oeuk_production(nsta_uk)
 
-for scenario_name in SCENARIOS:
 
-    for _, row in baseline.iterrows():
+# ------------------------------------------------------------
+# Run scenarios
+# ------------------------------------------------------------
 
-        year = int(row["year"])
+rows = []
 
-        baseline_relevant_gas = row["total_gas_bcm"]
+for scenario in SCENARIOS:
+    for base in baseline.itertuples():
 
-        additional_gas = scenario_uplift(
-            year,
-            scenario_name,
+        year = int(base.year)
+
+        total_gas = scenario_gas(
+            year=year,
+            scenario=scenario,
+            baseline_uk=base.uk_bcm,
+            baseline_norway=base.norway_bcm,
+            oeuk_production=oeuk,
+            st_fergus_share=A.UK_ST_FERGUS_SHARE,
         )
 
-        scenario_gas = (
-            baseline_relevant_gas
-            + additional_gas
-        )
-
-        # Scale scenario gas to Fife NGL throughput
         total_ngl = (
             A.FIFE_NGL_KTPA
-            * scenario_gas
-            / (
-                A.SEGAL_BCM
-                + A.FUKA_BCM
-                + A.SAGE_BCM
-            )
+            * total_gas
+            / baseline_2025_gas
         )
 
-        ethane = (
-            total_ngl
-            * A.ETHANE_MASS_SHARE
-        )
-
-        propane = (
-            total_ngl
-            * A.PROPANE_MASS_SHARE
-        )
-
-        butane = (
-            total_ngl
-            * A.BUTANE_MASS_SHARE
-        )
-
-        gasoline = (
-            total_ngl
-            * A.GASOLINE_MASS_SHARE
-        )
-
-        scenario_results.append({
-            "scenario": scenario_name,
+        row = {
+            "scenario": scenario,
             "year": year,
-            "baseline_gas_bcm": baseline_relevant_gas,
-            "additional_gas_bcm": additional_gas,
-            "scenario_gas_bcm": scenario_gas,
-            "total_ngl_ktpa": total_ngl,
-            "ethane_ktpa": ethane,
-            "propane_ktpa": propane,
-            "butane_ktpa": butane,
-            "gasoline_ktpa": gasoline,
-        })
+        }
+
+        for feedstock, share in FEEDSTOCKS.items():
+            row[f"{feedstock}_ktpa"] = (
+                total_ngl * share
+            )
+
+        rows.append(row)
 
 
-results = pd.DataFrame(scenario_results)
+results = pd.DataFrame(rows)
 
-
-# ============================================================
-# PROJECT PERIOD ONLY
-# ============================================================
+columns = [
+    f"{feedstock}_ktpa"
+    for feedstock in FEEDSTOCKS
+]
 
 project = results[
     results["year"].between(
@@ -101,66 +110,153 @@ project = results[
     )
 ].copy()
 
-
-# ============================================================
-# EXPORT
-# ============================================================
-
-project.to_csv(
-    "fife_feedstock_scenarios_2028_2063.csv",
-    index=False,
-)
+plot_data = results[
+    results["year"].between(
+        GRAPH_START_YEAR,
+        A.END_YEAR,
+    )
+].copy()
 
 
-# ============================================================
-# PLOT ETHANE
-# ============================================================
+# ------------------------------------------------------------
+# Validation
+# ------------------------------------------------------------
 
-plt.figure(figsize=(11, 6))
-
-for scenario_name in SCENARIOS:
-
-    data = project[
-        project["scenario"] == scenario_name
-    ]
-
-    plt.plot(
-        data["year"],
-        data["ethane_ktpa"],
-        label=scenario_name,
+if project.empty:
+    raise ValueError(
+        "No results exist within the project period."
     )
 
-plt.xlabel("Year")
-plt.ylabel("Potential ethane availability (kt/y)")
-plt.title("Fife NGL Ethane Availability - UKCS Scenarios")
-plt.grid(alpha=0.3)
-plt.legend()
-plt.tight_layout()
-plt.show()
-
-
-# ============================================================
-# PLOT TOTAL NGL
-# ============================================================
-
-plt.figure(figsize=(11, 6))
-
-for scenario_name in SCENARIOS:
-
-    data = project[
-        project["scenario"] == scenario_name
-    ]
-
-    plt.plot(
-        data["year"],
-        data["total_ngl_ktpa"],
-        label=scenario_name,
+if project[columns].isna().any().any():
+    raise ValueError(
+        "NaN values detected."
     )
 
-plt.xlabel("Year")
-plt.ylabel("Potential Fife NGL throughput (kt/y)")
-plt.title("Fife NGL Feedstock Availability - UKCS Scenarios")
-plt.grid(alpha=0.3)
-plt.legend()
-plt.tight_layout()
-plt.show()
+if (project[columns] < 0).any().any():
+    raise ValueError(
+        "Negative feedstock availability detected."
+    )
+
+start = plot_data[
+    plot_data["year"] == GRAPH_START_YEAR
+]
+
+for column in columns:
+    if start[column].round(10).nunique() != 1:
+        raise ValueError(
+            f"Scenarios are not identical in "
+            f"{GRAPH_START_YEAR}: {column}"
+        )
+
+for column in columns:
+    comparison = plot_data.pivot(
+        index="year",
+        columns="scenario",
+        values=column,
+    )
+
+    if (
+        comparison["Max Drilling (OEUK Upside)"]
+        < comparison["Rosebank + Jackdaw"]
+    ).any():
+        raise ValueError(
+            f"Max Drilling falls below "
+            f"Rosebank + Jackdaw: {column}"
+        )
+
+
+# ------------------------------------------------------------
+# Export scenario workbook
+# ------------------------------------------------------------
+
+with pd.ExcelWriter(
+    os.path.join(
+        OUTPUT_FOLDER,
+        "feedstock_scenarios.xlsx",
+    ),
+    engine="openpyxl",
+) as writer:
+
+    project.to_excel(
+        writer,
+        sheet_name="All Scenarios",
+        index=False,
+    )
+
+    for scenario in SCENARIOS:
+        data = project[
+            project["scenario"] == scenario
+        ][["year"] + columns]
+
+        data.to_excel(
+            writer,
+            sheet_name=SCENARIO_SHEETS[scenario],
+            index=False,
+        )
+
+
+# ------------------------------------------------------------
+# Export comparison workbook
+# ------------------------------------------------------------
+
+with pd.ExcelWriter(
+    os.path.join(
+        OUTPUT_FOLDER,
+        "feedstock_comparisons.xlsx",
+    ),
+    engine="openpyxl",
+) as writer:
+
+    for feedstock in FEEDSTOCKS:
+        comparison = project.pivot(
+            index="year",
+            columns="scenario",
+            values=f"{feedstock}_ktpa",
+        )
+
+        comparison.to_excel(
+            writer,
+            sheet_name=feedstock.capitalize(),
+        )
+
+
+# ------------------------------------------------------------
+# Plots
+# ------------------------------------------------------------
+
+for feedstock in FEEDSTOCKS:
+
+    column = f"{feedstock}_ktpa"
+
+    plt.figure(figsize=(11, 6))
+
+    for scenario in SCENARIOS:
+        data = plot_data[
+            plot_data["scenario"] == scenario
+        ]
+
+        plt.plot(
+            data["year"],
+            data[column],
+            label=scenario,
+        )
+
+    label = feedstock.capitalize()
+
+    plt.xlabel("Year")
+    plt.ylabel(
+        f"Potential {label} availability (kt/y)"
+    )
+    plt.title(
+        f"Projected Fife NGL {label} Availability"
+    )
+
+    plt.xlim(
+        GRAPH_START_YEAR,
+        A.END_YEAR,
+    )
+
+    plt.grid(alpha=0.3)
+    plt.legend()
+    plt.tight_layout()
+    plt.show()

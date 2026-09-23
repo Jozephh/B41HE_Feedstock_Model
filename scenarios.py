@@ -1,213 +1,197 @@
 """
 UKCS development scenarios for the Fife NGL feedstock model.
 
-IMPORTANT
----------
-These scenarios are engineering sensitivities, not forecasts of future
-government policy or predictions that particular fields will be developed.
+Scenarios:
+1. NSTA Reference
+2. Rosebank + Jackdaw
+3. Max Drilling (OEUK Upside)
 
-The NSTA Reference scenario remains the official February 2026 projection.
-
-Additional field profiles are explicit modelling assumptions used to test
-the sensitivity of future Fife NGL feedstock availability to additional
-UKCS development.
+All scenarios are identical through 2026.
+Scenario divergence begins in 2027.
 """
 
-
-# ============================================================
-# SCENARIO DEFINITIONS
-# ============================================================
-
-SCENARIOS = {
-
-    "NSTA Reference": {
-        "include_jackdaw": False,
-        "include_rosebank": False,
-        "future_fields": [],
-    },
-
-    "Jackdaw + Rosebank": {
-        "include_jackdaw": True,
-        "include_rosebank": True,
-        "future_fields": [],
-    },
-
-    "Continued Development": {
-        "include_jackdaw": True,
-        "include_rosebank": True,
-        "future_fields": [
-            2033,
-            2038,
-            2043,
-            2048,
-        ],
-    },
-
-    "High Development": {
-        "include_jackdaw": True,
-        "include_rosebank": True,
-        "future_fields": [
-            2031,
-            2034,
-            2037,
-            2040,
-            2043,
-            2046,
-            2049,
-            2052,
-        ],
-    },
-}
+import numpy as np
 
 
-# ============================================================
-# FIELD PROFILE ASSUMPTIONS
-# ============================================================
+DAYS_PER_YEAR = 365
+SCENARIO_START_YEAR = 2027
 
-# These are placeholders for the scenario framework.
-#
-# Do NOT treat these as sourced Rosebank/Jackdaw production data.
-# We will replace them with source-derived values after reviewing
-# the field development documents.
+SCENARIOS = [
+    "NSTA Reference",
+    "Rosebank + Jackdaw",
+    "Max Drilling (OEUK Upside)",
+]
 
+
+# Jackdaw P50 gas profile, kSm3/day
 JACKDAW = {
-    "start_year": 2027,
-    "plateau_bcm": None,
-    "plateau_years": 3,
-    "decline_rate": 0.12,
-    "st_fergus_fraction": 1.0,
+    2024: 1163,
+    2025: 4853,
+    2026: 4688,
+    2027: 3852,
+    2028: 3108,
+    2029: 2026,
+    2030: 1619,
+    2031: 1089,
+    2032: 504,
 }
 
+# Rosebank gas profile, MMSm3/day
 ROSEBANK = {
-    "start_year": 2027,
-    "plateau_bcm": None,
-    "plateau_years": 3,
-    "decline_rate": 0.12,
-    "st_fergus_fraction": None,
+    2026: 0.47,
+    2027: 1.62,
+    2028: 1.67,
+    2029: 1.72,
+    2030: 1.72,
+    2031: 1.72,
+    2032: 1.66,
+    2033: 1.58,
+    2034: 1.47,
+    2035: 1.39,
+    2036: 1.33,
+    2037: 1.39,
+    2038: 1.35,
+    2039: 1.27,
+    2040: 1.26,
+    2041: 1.21,
+    2042: 1.05,
+    2043: 0.98,
+    2044: 0.84,
+    2045: 0.72,
+    2046: 0.61,
+    2047: 0.52,
+    2048: 0.48,
+    2049: 0.45,
+    2050: 0.40,
+    2051: 0.37,
 }
 
+JACKDAW_SHIFT = 3
+ROSEBANK_SHIFT = 1
 
-# ============================================================
-# GENERIC FUTURE FIELD
-# ============================================================
 
-# Once Jackdaw and Rosebank gas profiles are established,
-# this value can be calculated from their representative scale.
+def named_field_uplift(year):
+    """Return Rosebank + Jackdaw contribution in bcm/y."""
 
-FUTURE_FIELD = {
-    "plateau_bcm": None,
-    "plateau_years": 3,
-    "decline_rate": 0.12,
-
-    # Generic future UKCS development.
-    # In the absence of a known export route, use the baseline
-    # northern/St Fergus allocation assumption.
-    "st_fergus_fraction": 0.32,
-}
-
-def field_production(
-    year,
-    start_year,
-    plateau_bcm,
-    plateau_years,
-    decline_rate,
-):
-    """
-    Calculate annual gas production for one modelled development.
-
-    Production profile:
-        before start year -> zero
-        plateau period    -> constant plateau production
-        after plateau     -> exponential decline
-    """
-
-    if plateau_bcm is None:
-        return 0.0
-
-    if year < start_year:
-        return 0.0
-
-    plateau_end = start_year + plateau_years - 1
-
-    if year <= plateau_end:
-        return plateau_bcm
-
-    years_declining = year - plateau_end
-
-    return (
-        plateau_bcm
-        * (1 - decline_rate) ** years_declining
+    jackdaw = (
+        JACKDAW.get(year - JACKDAW_SHIFT, 0)
+        * DAYS_PER_YEAR
+        / 1_000_000
     )
 
-def calculate_field_contribution(year, field):
-    """
-    Calculate gas from a field that reaches the relevant
-    St Fergus/Fife supply system.
-    """
-
-    production = field_production(
-        year=year,
-        start_year=field["start_year"],
-        plateau_bcm=field["plateau_bcm"],
-        plateau_years=field["plateau_years"],
-        decline_rate=field["decline_rate"],
+    rosebank = (
+        ROSEBANK.get(year - ROSEBANK_SHIFT, 0)
+        * DAYS_PER_YEAR
+        / 1000
     )
 
-    routing_fraction = field["st_fergus_fraction"]
+    return jackdaw + rosebank
 
-    if routing_fraction is None:
-        return 0.0
 
-    return production * routing_fraction
+# OEUK Upside Potential inputs
+OEUK_2030 = 26.588
+OEUK_2035 = 26.180
+OEUK_TOTAL_2025_2050 = 456.0
 
-def calculate_future_field(
-    year,
-    start_year,
-):
+
+def build_oeuk_production(nsta_uk):
     """
-    Calculate relevant gas contribution from one hypothetical
-    future UKCS field-equivalent.
+    Construct the OEUK Upside trajectory.
+
+    2025-2026: NSTA
+    2027-2030: interpolate to OEUK 2030
+    2031-2035: interpolate to OEUK 2035
+    2036-2063: exponential decline fitted to 456 bcm by 2050
     """
 
-    field = {
-        "start_year": start_year,
-        "plateau_bcm": FUTURE_FIELD["plateau_bcm"],
-        "plateau_years": FUTURE_FIELD["plateau_years"],
-        "decline_rate": FUTURE_FIELD["decline_rate"],
-        "st_fergus_fraction": FUTURE_FIELD["st_fergus_fraction"],
+    production = {
+        2025: nsta_uk[2025],
+        2026: nsta_uk[2026],
     }
 
-    return calculate_field_contribution(year, field)
-
-def scenario_uplift(year, scenario_name):
-    """
-    Return additional relevant St Fergus gas for a scenario
-    relative to the NSTA Reference case.
-    """
-
-    scenario = SCENARIOS[scenario_name]
-
-    uplift = 0.0
-
-    # Jackdaw
-    if scenario["include_jackdaw"]:
-        uplift += calculate_field_contribution(
+    for year in range(2027, 2031):
+        production[year] = np.interp(
             year,
-            JACKDAW,
+            [2026, 2030],
+            [nsta_uk[2026], OEUK_2030],
         )
 
-    # Rosebank
-    if scenario["include_rosebank"]:
-        uplift += calculate_field_contribution(
+    for year in range(2031, 2036):
+        production[year] = np.interp(
             year,
-            ROSEBANK,
+            [2030, 2035],
+            [OEUK_2030, OEUK_2035],
         )
 
-    # Hypothetical future developments
-    for start_year in scenario["future_fields"]:
-        uplift += calculate_future_field(
-            year,
-            start_year,
+    remaining = (
+        OEUK_TOTAL_2025_2050
+        - sum(production.values())
+    )
+
+    low, high = 0.0, 1.0
+
+    for _ in range(60):
+        factor = (low + high) / 2
+
+        total = sum(
+            OEUK_2035 * factor ** age
+            for age in range(1, 16)
         )
 
-    return uplift
+        if total < remaining:
+            low = factor
+        else:
+            high = factor
+
+    factor = (low + high) / 2
+
+    for year in range(2036, 2064):
+        production[year] = (
+            OEUK_2035
+            * factor ** (year - 2035)
+        )
+
+    return production
+
+
+def scenario_gas(
+    year,
+    scenario,
+    baseline_uk,
+    baseline_norway,
+    oeuk_production,
+    st_fergus_share,
+):
+    """Return gas relevant to Fife NGL in bcm/y."""
+
+    reference = baseline_uk + baseline_norway
+
+    if year < SCENARIO_START_YEAR:
+        return reference
+
+    rosebank_jackdaw = (
+        reference
+        + named_field_uplift(year)
+    )
+
+    if scenario == "NSTA Reference":
+        return reference
+
+    if scenario == "Rosebank + Jackdaw":
+        return rosebank_jackdaw
+
+    if scenario == "Max Drilling (OEUK Upside)":
+        oeuk_case = (
+            oeuk_production[year]
+            * st_fergus_share
+            + baseline_norway
+        )
+
+        return max(
+            oeuk_case,
+            rosebank_jackdaw,
+        )
+
+    raise ValueError(
+        f"Unknown scenario: {scenario}"
+    )
