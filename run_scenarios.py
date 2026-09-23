@@ -177,15 +177,16 @@ with pd.ExcelWriter(
     engine="openpyxl",
 ) as writer:
 
-    project.to_excel(
+    # Export from 2026 so Excel matches the Python plots
+    plot_data.to_excel(
         writer,
         sheet_name="All Scenarios",
         index=False,
     )
 
     for scenario in SCENARIOS:
-        data = project[
-            project["scenario"] == scenario
+        data = plot_data[
+            plot_data["scenario"] == scenario
         ][["year"] + columns]
 
         data.to_excel(
@@ -208,7 +209,7 @@ with pd.ExcelWriter(
 ) as writer:
 
     for feedstock in FEEDSTOCKS:
-        comparison = project.pivot(
+        comparison = plot_data.pivot(
             index="year",
             columns="scenario",
             values=f"{feedstock}_ktpa",
